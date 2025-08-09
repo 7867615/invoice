@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import type { AuthProvider } from "@refinedev/core"
-import { supabaseBrowserClient } from "@/lib/supabase/client"
+import type { AuthProvider } from "@refinedev/core";
+import { supabaseBrowserClient } from "@/utils/supabase/client";
 
 export const authProviderClient: AuthProvider = {
   login: async ({ email, provider, providerName, token, type }) => {
@@ -12,21 +12,21 @@ export const authProviderClient: AuthProvider = {
           email,
           token,
           type: "email",
-        })
+        });
 
         if (error) {
           return {
             success: false,
             error,
-          }
+          };
         }
 
         if (data?.session) {
-          await supabaseBrowserClient.auth.setSession(data.session)
+          await supabaseBrowserClient.auth.setSession(data.session);
           return {
             success: true,
             redirectTo: "/dashboard",
-          }
+          };
         }
 
         return {
@@ -35,18 +35,18 @@ export const authProviderClient: AuthProvider = {
             name: "VerificationError",
             message: "Invalid verification code",
           },
-        }
+        };
       } catch (error: any) {
         return {
           success: false,
           error,
-        }
+        };
       }
     }
 
     // Handle OAuth login (Google, Microsoft, Apple)
     if (provider || providerName) {
-      const oauthProvider = provider || providerName
+      const oauthProvider = provider || providerName;
 
       const { data, error } = await supabaseBrowserClient.auth.signInWithOAuth({
         provider: oauthProvider,
@@ -57,19 +57,19 @@ export const authProviderClient: AuthProvider = {
             prompt: "consent",
           },
         },
-      })
+      });
 
       if (error) {
         return {
           success: false,
           error,
-        }
+        };
       }
 
       return {
         success: true,
         redirectTo: "/dashboard",
-      }
+      };
     }
 
     // Handle OTP login (email only)
@@ -80,19 +80,19 @@ export const authProviderClient: AuthProvider = {
           emailRedirectTo: undefined,
           shouldCreateUser: true,
         },
-      })
+      });
 
       if (error) {
         return {
           success: false,
           error,
-        }
+        };
       }
 
       return {
         success: true,
         redirectTo: `/auth/verify?email=${encodeURIComponent(email)}`,
-      }
+      };
     }
 
     // Default error case
@@ -102,23 +102,23 @@ export const authProviderClient: AuthProvider = {
         name: "LoginError",
         message: "Email is required for authentication",
       },
-    }
+    };
   },
 
   logout: async () => {
-    const { error } = await supabaseBrowserClient.auth.signOut()
+    const { error } = await supabaseBrowserClient.auth.signOut();
 
     if (error) {
       return {
         success: false,
         error,
-      }
+      };
     }
 
     return {
       success: true,
       redirectTo: "/auth",
-    }
+    };
   },
 
   register: async ({ email }) => {
@@ -129,76 +129,76 @@ export const authProviderClient: AuthProvider = {
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
-      })
+      });
 
       if (error) {
         return {
           success: false,
           error,
-        }
+        };
       }
 
       return {
         success: true,
         redirectTo: `/auth/verify?email=${encodeURIComponent(email)}`,
-      }
+      };
     } catch (error: any) {
       return {
         success: false,
         error,
-      }
+      };
     }
   },
 
   check: async () => {
-    const { data, error } = await supabaseBrowserClient.auth.getUser()
-    const { user } = data
+    const { data, error } = await supabaseBrowserClient.auth.getUser();
+    const { user } = data;
 
     if (error) {
       return {
         authenticated: false,
         redirectTo: "/auth",
         logout: true,
-      }
+      };
     }
 
     if (user) {
       return {
         authenticated: true,
-      }
+      };
     }
 
     return {
       authenticated: false,
       redirectTo: "/auth",
-    }
+    };
   },
 
   getPermissions: async () => {
-    const user = await supabaseBrowserClient.auth.getUser()
+    const user = await supabaseBrowserClient.auth.getUser();
     if (user) {
-      return user.data.user?.role
+      return user.data.user?.role;
     }
-    return null
+    return null;
   },
 
   getIdentity: async () => {
-    const { data } = await supabaseBrowserClient.auth.getUser()
+    const { data } = await supabaseBrowserClient.auth.getUser();
     if (data?.user) {
       return {
         ...data.user,
         name: data.user.email,
-      }
+      };
     }
-    return null
+    return null;
   },
 
   onError: async (error) => {
     if (error?.code === "PGRST301" || error?.code === 401) {
       return {
         logout: true,
-      }
+      };
     }
-    return { error }
+    return { error };
   },
-}
+};

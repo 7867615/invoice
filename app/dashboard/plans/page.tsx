@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { redirect } from "next/navigation"
-import { supabase } from "@/lib/supabase/client"
+import { supabaseBrowserClient as supabase } from "@/utils/supabase/client"
 import { PlanCard } from "@/components/dashboard/plan-card"
 import { toast } from "@/hooks/use-toast"
 

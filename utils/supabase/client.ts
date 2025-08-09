@@ -1,6 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { SUPABASE_KEY, SUPABASE_URL } from "./constants";
-import type { Database } from "./database.types";
+import { Database } from "@/types/database";
 
 export const supabaseBrowserClient = createBrowserClient<Database>(
   SUPABASE_URL,
@@ -11,7 +11,3 @@ export const supabaseBrowserClient = createBrowserClient<Database>(
     },
   }
 );
-
-// Legacy export for backward compatibility
-export const createClient = () => supabaseBrowserClient;
-export const supabase = supabaseBrowserClient;
