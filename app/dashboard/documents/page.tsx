@@ -1,31 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { redirect } from "next/navigation"
-import { supabase } from "@/lib/supabase/client"
+import { useGetIdentity } from "@refinedev/core"
 import { DocumentTable } from "@/components/dashboard/document-table"
 
 export default function DocumentsPage() {
-  const [user, setUser] = useState<any>(null)
+  const { data: identity, isLoading } = useGetIdentity()
 
-  useEffect(() => {
-    checkUser()
-  }, [])
-
-  const checkUser = async () => {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser()
-
-    if (error || !user) {
-      redirect("/auth")
-    }
-
-    setUser(user)
-  }
-
-  if (!user) {
+  if (isLoading) {
     return <div>Loading...</div>
   }
 
@@ -36,7 +17,7 @@ export default function DocumentsPage() {
         <p className="text-muted-foreground">View and manage all your uploaded documents.</p>
       </div>
 
-      <DocumentTable userId={user.id} />
+      <DocumentTable userId={identity?.id} />
     </div>
   )
 }

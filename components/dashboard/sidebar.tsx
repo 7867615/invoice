@@ -3,12 +3,12 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { useLogout, useGetIdentity } from "@refinedev/core"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { LayoutDashboard, Upload, Settings, CreditCard, FileText, Menu, LogOut, User } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { toast } from "@/hooks/use-toast"
 
 const navigation = [
@@ -52,29 +52,29 @@ export function Sidebar({ userProfile }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
-  const [isSigningOut, setIsSigningOut] = useState(false)
-  const supabase = createClient()
+  const { mutate: logout, isLoading: isSigningOut } = useLogout()
+  const { data: identity } = useGetIdentity()
 
   const handleSignOut = async () => {
-    setIsSigningOut(true)
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-
-      router.push("/auth")
-      toast({
-        title: "Signed out",
-        description: "You have been signed out successfully.",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    } finally {
-      setIsSigningOut(false)
-    }
+    logout(
+      {},
+      {
+        onSuccess: () => {
+          toast({
+            title: "Signed out",
+            description: "You have been signed out successfully.",
+          })
+          router.push("/auth")
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          })
+        },
+      },
+    )
   }
 
   const SidebarContent = () => (
@@ -105,17 +105,19 @@ export function Sidebar({ userProfile }: SidebarProps) {
         </nav>
       </ScrollArea>
 
-      {userProfile && (
+      {(userProfile || identity) && (
         <div className="border-t border-slate-800 p-4">
           <div className="mb-4 rounded-lg bg-slate-800 p-3">
             <div className="flex items-center gap-2 mb-2">
               <User className="h-4 w-4" />
-              <span className="text-sm font-medium">{userProfile.full_name || userProfile.email}</span>
+              <span className="text-sm font-medium">
+                {userProfile?.full_name || identity?.name || userProfile?.email || identity?.email}
+              </span>
             </div>
             <div className="text-xs text-slate-400">
-              Plan: {userProfile.plan_type.charAt(0).toUpperCase() + userProfile.plan_type.slice(1)}
+              Plan: {userProfile?.plan_type?.charAt(0).toUpperCase() + userProfile?.plan_type?.slice(1) || "Free"}
             </div>
-            <div className="text-xs text-slate-400">Tokens: {userProfile.tokens_remaining}</div>
+            <div className="text-xs text-slate-400">Tokens: {userProfile?.tokens_remaining || 0}</div>
           </div>
           <Button
             variant="ghost"

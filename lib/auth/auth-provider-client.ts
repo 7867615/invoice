@@ -4,79 +4,33 @@ import type { AuthProvider } from "@refinedev/core"
 import { supabaseBrowserClient } from "@/lib/supabase/client"
 
 export const authProviderClient: AuthProvider = {
-  login: async ({ email, password, provider }) => {
-    // Handle OAuth login
-    if (provider) {
-      const { data, error } = await supabaseBrowserClient.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
+  login: async ({ email, password }) => {
+    const { data, error } = await supabaseBrowserClient.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-      if (error) {
-        return {
-          success: false,
-          error,
-        }
+    if (error) {
+      return {
+        success: false,
+        error,
       }
+    }
 
+    if (data?.session) {
+      await supabaseBrowserClient.auth.setSession(data.session)
       return {
         success: true,
-        redirectTo: "/dashboard",
+        redirectTo: "/",
       }
     }
 
-    // Handle email/password login
-    if (email && password) {
-      const { data, error } = await supabaseBrowserClient.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (error) {
-        return {
-          success: false,
-          error,
-        }
-      }
-
-      if (data?.session) {
-        await supabaseBrowserClient.auth.setSession(data.session)
-        return {
-          success: true,
-          redirectTo: "/dashboard",
-        }
-      }
-    }
-
-    // Handle OTP login
-    if (email && !password) {
-      const { error } = await supabaseBrowserClient.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-
-      if (error) {
-        return {
-          success: false,
-          error,
-        }
-      }
-
-      return {
-        success: true,
-        redirectTo: `/auth/verify?email=${encodeURIComponent(email)}`,
-      }
-    }
-
+    // for third-party login
     return {
       success: false,
       error: {
         name: "LoginError",
-        message: "Invalid login credentials",
+        message: "Invalid username or password",
       },
     }
   },
@@ -93,7 +47,7 @@ export const authProviderClient: AuthProvider = {
 
     return {
       success: true,
-      redirectTo: "/auth",
+      redirectTo: "/login",
     }
   },
 
@@ -114,7 +68,7 @@ export const authProviderClient: AuthProvider = {
       if (data) {
         return {
           success: true,
-          redirectTo: "/dashboard",
+          redirectTo: "/",
         }
       }
     } catch (error: any) {
@@ -140,7 +94,7 @@ export const authProviderClient: AuthProvider = {
     if (error) {
       return {
         authenticated: false,
-        redirectTo: "/auth",
+        redirectTo: "/login",
         logout: true,
       }
     }
@@ -153,7 +107,7 @@ export const authProviderClient: AuthProvider = {
 
     return {
       authenticated: false,
-      redirectTo: "/auth",
+      redirectTo: "/login",
     }
   },
 

@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
+import { useLogin } from "@refinedev/core"
 import { supabaseBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,6 +18,7 @@ export function AuthForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isOAuthLoading, setIsOAuthLoading] = useState<string | null>(null)
   const router = useRouter()
+  const { mutate: login } = useLogin()
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault()

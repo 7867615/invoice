@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
+import { useGetIdentity, useList } from "@refinedev/core"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { FileText, Download, Eye } from "lucide-react"
-import { supabase } from "@/lib/supabase/client"
-import { toast } from "@/hooks/use-toast"
+import { supabaseBrowserClient } from "@/lib/supabase/client"
 
 interface Document {
   id: string
@@ -20,18 +20,39 @@ interface Document {
 }
 
 interface DocumentTableProps {
-  userId: string
+  userId?: string
 }
 
 export function DocumentTable({ userId }: DocumentTableProps) {
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { data: identity } = useGetIdentity()
+  const {
+    data: documentsData,
+    isLoading,
+    refetch,
+  } = useList({
+    resource: "documents",
+    filters: [
+      {
+        field: "user_id",
+        operator: "eq",
+        value: userId || identity?.id,
+      },
+    ],
+    sorters: [
+      {
+        field: "created_at",
+        order: "desc",
+      },
+    ],
+  })
+
+  const documents = documentsData?.data || []
 
   useEffect(() => {
-    fetchDocuments()
+    if (!userId && !identity?.id) return
 
     // Set up real-time subscription
-    const subscription = supabase
+    const subscription = supabaseBrowserClient
       .channel("documents")
       .on(
         "postgres_changes",
@@ -39,16 +60,10 @@ export function DocumentTable({ userId }: DocumentTableProps) {
           event: "*",
           schema: "public",
           table: "documents",
-          filter: `user_id=eq.${userId}`,
+          filter: `user_id=eq.${userId || identity?.id}`,
         },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            setDocuments((prev) => [...prev, payload.new as Document])
-          } else if (payload.eventType === "UPDATE") {
-            setDocuments((prev) => prev.map((doc) => (doc.id === payload.new.id ? (payload.new as Document) : doc)))
-          } else if (payload.eventType === "DELETE") {
-            setDocuments((prev) => prev.filter((doc) => doc.id !== payload.old.id))
-          }
+        () => {
+          refetch()
         },
       )
       .subscribe()
@@ -56,28 +71,7 @@ export function DocumentTable({ userId }: DocumentTableProps) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [userId])
-
-  const fetchDocuments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("documents")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-
-      if (error) throw error
-      setDocuments(data || [])
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  }, [userId, identity?.id, refetch])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -145,7 +139,7 @@ export function DocumentTable({ userId }: DocumentTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {documents.map((document) => (
+              {documents.map((document: Document) => (
                 <TableRow key={document.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
