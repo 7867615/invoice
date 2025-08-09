@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useLogin } from "@refinedev/core"
-import { authProviderClient } from "@/lib/auth/auth-provider-client"
+import { resendOTP } from "@/lib/auth/otp-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +14,7 @@ import { toast } from "@/hooks/use-toast"
 export function VerifyOTP() {
   const [otp, setOtp] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isResending, setIsResending] = useState(false)
   const [email, setEmail] = useState("")
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -30,20 +31,48 @@ export function VerifyOTP() {
     e.preventDefault()
     setIsLoading(true)
 
-    try {
-      const result = await authProviderClient.verifyOtp({
+    // Use the login method with OTP verification parameters
+    login(
+      {
         email,
         token: otp,
-      })
+        type: "otp",
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Success",
+            description: "Email verified successfully!",
+          })
+          router.push("/dashboard")
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: error.message || "Verification failed",
+            variant: "destructive",
+          })
+        },
+        onSettled: () => {
+          setIsLoading(false)
+        },
+      },
+    )
+  }
+
+  const handleResendOTP = async () => {
+    setIsResending(true)
+
+    try {
+      const result = await resendOTP(email)
 
       if (result.success) {
         toast({
-          title: "Success",
-          description: "Email verified successfully!",
+          title: "Code sent",
+          description: "A new verification code has been sent to your email.",
         })
-        router.push("/dashboard")
       } else {
-        throw new Error(result.error?.message || "Verification failed")
+        throw new Error(result.error?.message || "Failed to resend code")
       }
     } catch (error: any) {
       toast({
@@ -52,29 +81,8 @@ export function VerifyOTP() {
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsResending(false)
     }
-  }
-
-  const handleResendOTP = async () => {
-    login(
-      { email },
-      {
-        onSuccess: () => {
-          toast({
-            title: "Code sent",
-            description: "A new verification code has been sent to your email.",
-          })
-        },
-        onError: (error) => {
-          toast({
-            title: "Error",
-            description: error.message,
-            variant: "destructive",
-          })
-        },
-      },
-    )
   }
 
   return (
@@ -104,8 +112,8 @@ export function VerifyOTP() {
           </form>
 
           <div className="text-center">
-            <Button variant="link" onClick={handleResendOTP}>
-              Didn't receive the code? Resend
+            <Button variant="link" onClick={handleResendOTP} disabled={isResending}>
+              {isResending ? "Sending..." : "Didn't receive the code? Resend"}
             </Button>
           </div>
         </CardContent>

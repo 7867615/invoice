@@ -34,20 +34,3 @@ export async function requireAuth() {
 
   return { user, profile }
 }
-
-// Helper function for OTP verification
-export async function verifyOTP(email: string, token: string) {
-  const supabase = await createSupabaseServerClient()
-
-  const { data, error } = await supabase.auth.verifyOtp({
-    email,
-    token,
-    type: "email",
-  })
-
-  if (error) {
-    throw error
-  }
-
-  return data
-}
