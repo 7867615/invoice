@@ -1,12 +1,13 @@
 import { createBrowserClient } from "@supabase/ssr"
+import { SUPABASE_KEY, SUPABASE_URL } from "./constants"
 import type { Database } from "./database.types"
 
-export function createClient() {
-  return createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  )
-}
+export const supabaseBrowserClient = createBrowserClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
+  db: {
+    schema: "public",
+  },
+})
 
 // Legacy export for backward compatibility
-export const supabase = createClient()
+export const createClient = () => supabaseBrowserClient
+export const supabase = supabaseBrowserClient

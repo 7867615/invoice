@@ -1,5 +1,5 @@
 import { requireAuth } from "@/lib/auth/auth-helpers"
-import { createClient } from "@/lib/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -7,7 +7,7 @@ import { FileText, CreditCard, Upload, TrendingUp } from "lucide-react"
 
 export default async function DashboardPage() {
   const { user, profile } = await requireAuth()
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
 
   const { data: documents } = await supabase.from("documents").select("*").eq("user_id", user.id)
 

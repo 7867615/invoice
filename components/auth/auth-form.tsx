@@ -1,9 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { supabaseBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,14 +17,13 @@ export function AuthForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isOAuthLoading, setIsOAuthLoading] = useState<string | null>(null)
   const router = useRouter()
-  const supabase = createClient()
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabaseBrowserClient.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -55,7 +53,7 @@ export function AuthForm() {
     setIsOAuthLoading(provider)
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabaseBrowserClient.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -98,6 +96,7 @@ export function AuthForm() {
                 disabled={isLoading || isOAuthLoading !== null}
               />
             </div>
+
             <Button type="submit" className="w-full" disabled={isLoading || isOAuthLoading !== null}>
               <Mail className="w-4 h-4 mr-2" />
               {isLoading ? "Sending..." : "Continue with Email"}

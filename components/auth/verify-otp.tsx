@@ -1,9 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { supabaseBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,7 +16,6 @@ export function VerifyOTP() {
   const [email, setEmail] = useState("")
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
 
   useEffect(() => {
     const emailParam = searchParams.get("email")
@@ -31,7 +29,7 @@ export function VerifyOTP() {
     setIsLoading(true)
 
     try {
-      const { error } = await supabase.auth.verifyOtp({
+      const { error } = await supabaseBrowserClient.auth.verifyOtp({
         email,
         token: otp,
         type: "email",
@@ -58,7 +56,7 @@ export function VerifyOTP() {
 
   const handleResendOTP = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabaseBrowserClient.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,

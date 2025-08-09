@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import "./globals.css"
 import { Toaster } from "@/components/ui/toaster"
 import SupabaseProvider from "@/components/providers/supabase-provider"
+import { RefineProvider } from "@/components/providers/refine-provider"
 
 export const metadata: Metadata = {
   title: "DocInspector - Document Processing Dashboard",
@@ -30,8 +31,10 @@ html {
       </head>
       <body>
         <SupabaseProvider>
-          {children}
-          <Toaster />
+          <RefineProvider>
+            {children}
+            <Toaster />
+          </RefineProvider>
         </SupabaseProvider>
       </body>
     </html>

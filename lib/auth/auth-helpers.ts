@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
 
 export async function getUser(): Promise<User> {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const {
     data: { user },
     error,
@@ -17,7 +17,7 @@ export async function getUser(): Promise<User> {
 }
 
 export async function getUserProfile(userId: string) {
-  const supabase = await createClient()
+  const supabase = await createSupabaseServerClient()
   const { data: profile, error } = await supabase.from("user_profiles").select("*").eq("id", userId).single()
 
   if (error) {
