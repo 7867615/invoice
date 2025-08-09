@@ -4,34 +4,103 @@ import type { AuthProvider } from "@refinedev/core"
 import { supabaseBrowserClient } from "@/lib/supabase/client"
 
 export const authProviderClient: AuthProvider = {
-  login: async ({ email, password }) => {
-    const { data, error } = await supabaseBrowserClient.auth.signInWithPassword({
-      email,
-      password,
-    })
+  login: async ({ email, provider, providerName }) => {
+    // Handle OAuth login (Google, Microsoft, Apple)
+    if (provider || providerName) {
+      const oauthProvider = provider || providerName
 
-    if (error) {
-      return {
-        success: false,
-        error,
+      const { data, error } = await supabaseBrowserClient.auth.signInWithOAuth({
+        provider: oauthProvider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      })
+
+      if (error) {
+        return {
+          success: false,
+          error,
+        }
       }
-    }
 
-    if (data?.session) {
-      await supabaseBrowserClient.auth.setSession(data.session)
       return {
         success: true,
-        redirectTo: "/",
+        redirectTo: "/dashboard",
       }
     }
 
-    // for third-party login
+    // Handle OTP login (email only)
+    if (email) {
+      const { error } = await supabaseBrowserClient.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        return {
+          success: false,
+          error,
+        }
+      }
+
+      return {
+        success: true,
+        redirectTo: `/auth/verify?email=${encodeURIComponent(email)}`,
+      }
+    }
+
+    // Default error case
     return {
       success: false,
       error: {
         name: "LoginError",
-        message: "Invalid username or password",
+        message: "Email is required for authentication",
       },
+    }
+  },
+
+  // Custom method for OTP verification
+  verifyOtp: async ({ email, token }: { email: string; token: string }) => {
+    try {
+      const { data, error } = await supabaseBrowserClient.auth.verifyOtp({
+        email,
+        token,
+        type: "email",
+      })
+
+      if (error) {
+        return {
+          success: false,
+          error,
+        }
+      }
+
+      if (data?.session) {
+        await supabaseBrowserClient.auth.setSession(data.session)
+        return {
+          success: true,
+          redirectTo: "/dashboard",
+        }
+      }
+
+      return {
+        success: false,
+        error: {
+          name: "VerificationError",
+          message: "Invalid verification code",
+        },
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error,
+      }
     }
   },
 
@@ -47,15 +116,18 @@ export const authProviderClient: AuthProvider = {
 
     return {
       success: true,
-      redirectTo: "/login",
+      redirectTo: "/auth",
     }
   },
 
-  register: async ({ email, password }) => {
+  register: async ({ email }) => {
     try {
-      const { data, error } = await supabaseBrowserClient.auth.signUp({
+      // For registration, we'll use OTP as well (no password)
+      const { error } = await supabaseBrowserClient.auth.signInWithOtp({
         email,
-        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       })
 
       if (error) {
@@ -65,25 +137,15 @@ export const authProviderClient: AuthProvider = {
         }
       }
 
-      if (data) {
-        return {
-          success: true,
-          redirectTo: "/",
-        }
+      return {
+        success: true,
+        redirectTo: `/auth/verify?email=${encodeURIComponent(email)}`,
       }
     } catch (error: any) {
       return {
         success: false,
         error,
       }
-    }
-
-    return {
-      success: false,
-      error: {
-        message: "Register failed",
-        name: "Invalid email or password",
-      },
     }
   },
 
@@ -94,7 +156,7 @@ export const authProviderClient: AuthProvider = {
     if (error) {
       return {
         authenticated: false,
-        redirectTo: "/login",
+        redirectTo: "/auth",
         logout: true,
       }
     }
@@ -107,7 +169,7 @@ export const authProviderClient: AuthProvider = {
 
     return {
       authenticated: false,
-      redirectTo: "/login",
+      redirectTo: "/auth",
     }
   },
 

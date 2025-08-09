@@ -2,7 +2,8 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { supabaseBrowserClient } from "@/lib/supabase/client"
+import { useLogin } from "@refinedev/core"
+import { authProviderClient } from "@/lib/auth/auth-provider-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +17,7 @@ export function VerifyOTP() {
   const [email, setEmail] = useState("")
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { mutate: login } = useLogin()
 
   useEffect(() => {
     const emailParam = searchParams.get("email")
@@ -29,20 +31,20 @@ export function VerifyOTP() {
     setIsLoading(true)
 
     try {
-      const { error } = await supabaseBrowserClient.auth.verifyOtp({
+      const result = await authProviderClient.verifyOtp({
         email,
         token: otp,
-        type: "email",
       })
 
-      if (error) throw error
-
-      toast({
-        title: "Success",
-        description: "Email verified successfully!",
-      })
-
-      router.push("/dashboard")
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Email verified successfully!",
+        })
+        router.push("/dashboard")
+      } else {
+        throw new Error(result.error?.message || "Verification failed")
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -55,27 +57,24 @@ export function VerifyOTP() {
   }
 
   const handleResendOTP = async () => {
-    try {
-      const { error } = await supabaseBrowserClient.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+    login(
+      { email },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Code sent",
+            description: "A new verification code has been sent to your email.",
+          })
         },
-      })
-
-      if (error) throw error
-
-      toast({
-        title: "Code sent",
-        description: "A new verification code has been sent to your email.",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    }
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          })
+        },
+      },
+    )
   }
 
   return (

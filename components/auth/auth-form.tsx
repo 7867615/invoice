@@ -3,78 +3,69 @@
 import type React from "react"
 import { useState } from "react"
 import { useLogin } from "@refinedev/core"
-import { supabaseBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Mail, Chrome, Apple } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { toast } from "@/hooks/use-toast"
 
 export function AuthForm() {
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isOAuthLoading, setIsOAuthLoading] = useState<string | null>(null)
-  const router = useRouter()
   const { mutate: login } = useLogin()
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    try {
-      const { error } = await supabaseBrowserClient.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+    login(
+      { email },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Check your email",
+            description: "We've sent you a verification code.",
+          })
         },
-      })
-
-      if (error) throw error
-
-      toast({
-        title: "Check your email",
-        description: "We've sent you a verification code.",
-      })
-
-      router.push(`/auth/verify?email=${encodeURIComponent(email)}`)
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          })
+        },
+        onSettled: () => {
+          setIsLoading(false)
+        },
+      },
+    )
   }
 
   const handleOAuthLogin = async (provider: "google" | "azure" | "apple") => {
     setIsOAuthLoading(provider)
 
-    try {
-      const { error } = await supabaseBrowserClient.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
+    login(
+      { providerName: provider },
+      {
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          })
+          setIsOAuthLoading(null)
         },
-      })
-
-      if (error) throw error
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-      setIsOAuthLoading(null)
-    }
+        onSettled: () => {
+          // Don't reset loading state on success for OAuth as it redirects
+          if (isOAuthLoading) {
+            setIsOAuthLoading(null)
+          }
+        },
+      },
+    )
   }
 
   return (
