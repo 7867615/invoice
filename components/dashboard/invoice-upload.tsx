@@ -23,6 +23,7 @@ interface InvoiceUploadProps {
   onStartInspection: (files: UploadedInvoice[]) => void
   uploadedFiles: UploadedInvoice[]
   isProcessing?: boolean
+  sessionId?: string
 }
 
 export function InvoiceUpload({
@@ -31,6 +32,7 @@ export function InvoiceUpload({
   onStartInspection,
   uploadedFiles,
   isProcessing = false,
+  sessionId,
 }: InvoiceUploadProps) {
   const [isUploading, setIsUploading] = useState(false)
   const { open } = useNotification()
@@ -70,7 +72,7 @@ export function InvoiceUpload({
       open?.({
         type: "success",
         message: "Files Uploaded",
-        description: `${acceptedFiles.length} invoice(s) uploaded successfully.`,
+        description: `${acceptedFiles.length} invoice(s) uploaded successfully to session.`,
       })
     },
     [uploadedFiles, maxFiles, onFilesChange, open],
@@ -91,14 +93,17 @@ export function InvoiceUpload({
     disabled: isUploading || isProcessing,
   })
 
-  const removeFile = (fileId: string) => {
-    const updatedFiles = uploadedFiles.filter((f) => f.id !== fileId)
-    onFilesChange(updatedFiles)
-  }
+  const removeFile = useCallback(
+    (fileId: string) => {
+      const updatedFiles = uploadedFiles.filter((f) => f.id !== fileId)
+      onFilesChange(updatedFiles)
+    },
+    [uploadedFiles, onFilesChange],
+  )
 
-  const handleStartInspection = () => {
+  const handleStartInspection = useCallback(() => {
     onStartInspection(uploadedFiles)
-  }
+  }, [onStartInspection, uploadedFiles])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -129,13 +134,19 @@ export function InvoiceUpload({
 
   return (
     <div className="space-y-6">
+      {sessionId && (
+        <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
+          <strong>Session ID:</strong> {sessionId} • All files uploaded here will be part of this inspection session.
+        </div>
+      )}
+
       {uploadedFiles.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Upload Invoices</CardTitle>
+            <CardTitle>Upload Invoices to Session</CardTitle>
             <CardDescription>
-              Upload up to {maxFiles} invoices for processing. Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, GIF,
-              WEBP
+              Upload up to {maxFiles} invoices for processing in this session. Supported formats: PDF, DOC, DOCX, TXT,
+              JPG, PNG, GIF, WEBP
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -162,8 +173,8 @@ export function InvoiceUpload({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Uploaded Invoices</CardTitle>
-              <CardDescription>{uploadedFiles.length} invoice(s) ready for processing</CardDescription>
+              <CardTitle>Session Files</CardTitle>
+              <CardDescription>{uploadedFiles.length} invoice(s) ready for processing in this session</CardDescription>
             </div>
             <div className="flex gap-2">
               <div {...getRootProps()} className="cursor-pointer">
