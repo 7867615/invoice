@@ -18,14 +18,14 @@ const navigation = [
     icon: LayoutDashboard,
   },
   {
-    name: "Documents",
-    href: "/dashboard/documents",
-    icon: FileText,
-  },
-  {
-    name: "Upload",
+    name: "Upload Invoices",
     href: "/dashboard/upload",
     icon: Upload,
+  },
+  {
+    name: "Invoice History",
+    href: "/dashboard/invoices",
+    icon: FileText,
   },
   {
     name: "Plans",
@@ -80,7 +80,7 @@ export function Sidebar({ userProfile }: SidebarProps) {
   const SidebarContent = () => (
     <div className="flex h-full flex-col bg-slate-900 text-white">
       <div className="flex h-16 items-center border-b border-slate-800 px-6">
-        <h1 className="text-xl font-bold">DocInspector</h1>
+        <h1 className="text-xl font-bold">InvoiceAI</h1>
       </div>
 
       <ScrollArea className="flex-1 px-3 py-4">
