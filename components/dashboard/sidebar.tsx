@@ -1,17 +1,24 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import Link from "next/link"
+import { useState, useCallback, useTransition } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { useLogout, useGetIdentity, useList } from "@refinedev/core"
+import { useLogout, useGetIdentity, useList, useCreate } from "@refinedev/core"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
-  LayoutDashboard,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
+import { EditSessionDialog } from "./edit-session-dialog"
+import {
   Plus,
   Settings,
   CreditCard,
@@ -23,26 +30,12 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  MoreHorizontal,
+  Edit,
+  ChevronDown,
+  FileText,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-
-const mainNavigation = [
-  {
-    name: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    name: "Plans",
-    href: "/dashboard/plans",
-    icon: CreditCard,
-  },
-  {
-    name: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-  },
-]
 
 interface SidebarProps {
   userProfile?: {
@@ -57,11 +50,22 @@ export function Sidebar({ userProfile }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [editingSession, setEditingSession] = useState<{
+    id: string
+    session_name: string | null
+  } | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const [isCreatingSession, setIsCreatingSession] = useState(false)
   const { mutate: logout, isLoading: isSigningOut } = useLogout()
   const { data: identity } = useGetIdentity()
+  const { mutate: createSession } = useCreate()
 
   // Fetch all sessions for the sidebar
-  const { data: sessionsData, isLoading: sessionsLoading } = useList({
+  const {
+    data: sessionsData,
+    isLoading: sessionsLoading,
+    refetch: refetchSessions,
+  } = useList({
     resource: "inspection_sessions",
     filters: [
       {
@@ -85,6 +89,59 @@ export function Sidebar({ userProfile }: SidebarProps) {
 
   const sessions = sessionsData?.data || []
 
+  const handleNavigation = useCallback(
+    (href: string) => {
+      startTransition(() => {
+        router.push(href)
+        setIsOpen(false)
+      })
+    },
+    [router],
+  )
+
+  const handleCreateNewSession = useCallback(() => {
+    if (!identity?.id || isCreatingSession) return
+
+    setIsCreatingSession(true)
+    const defaultSessionName = `Session ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`
+
+    createSession(
+      {
+        resource: "inspection_sessions",
+        values: {
+          user_id: identity.id,
+          session_name: defaultSessionName,
+          status: "draft",
+        },
+      },
+      {
+        onSuccess: (data) => {
+          toast({
+            title: "Session Created",
+            description: "New inspection session has been created successfully.",
+          })
+          // Navigate to the new session
+          startTransition(() => {
+            router.push(`/dashboard/sessions/${data.data.id}`)
+            setIsOpen(false)
+          })
+          // Refetch sessions to update the sidebar
+          refetchSessions()
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to create new session.",
+            variant: "destructive",
+          })
+        },
+        onSettled: () => {
+          setIsCreatingSession(false)
+        },
+      },
+    )
+  }, [identity?.id, isCreatingSession, createSession, router, refetchSessions])
+
   const handleSignOut = useCallback(async () => {
     logout(
       {},
@@ -106,6 +163,21 @@ export function Sidebar({ userProfile }: SidebarProps) {
       },
     )
   }, [logout, router])
+
+  const handleEditSession = useCallback((session: { id: string; session_name: string | null }) => {
+    setEditingSession(session)
+  }, [])
+
+  const handleEditDialogClose = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setEditingSession(null)
+        // Refetch sessions to get updated data
+        refetchSessions()
+      }
+    },
+    [refetchSessions],
+  )
 
   const getSessionStatusIcon = (status: string) => {
     switch (status) {
@@ -142,6 +214,17 @@ export function Sidebar({ userProfile }: SidebarProps) {
     return name.substring(0, maxLength) + "..."
   }
 
+  // Get user initials for avatar fallback
+  const getUserInitials = () => {
+    const name = userProfile?.full_name || identity?.name || userProfile?.email || identity?.email || "User"
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
   const SidebarContent = () => (
     <div className="flex h-full flex-col bg-slate-900 text-white">
       {/* Header */}
@@ -152,36 +235,35 @@ export function Sidebar({ userProfile }: SidebarProps) {
       <div className="flex-1 flex flex-col min-h-0">
         {/* New Session Button */}
         <div className="p-4">
-          <Link href="/dashboard/upload" onClick={() => setIsOpen(false)}>
-            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-              <Plus className="w-4 h-4 mr-2" />
-              New Session
-            </Button>
-          </Link>
+          <Button
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={handleCreateNewSession}
+            disabled={isPending || isCreatingSession || !identity?.id}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            {isCreatingSession ? "Creating..." : "New Session"}
+          </Button>
         </div>
 
-        {/* Main Navigation */}
-        <div className="px-4 pb-4">
+        {/* Quick Actions */}
+        {/*<div className="px-4 pb-4">
           <nav className="space-y-1">
-            {mainNavigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    isActive ? "bg-slate-800 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white",
-                  )}
-                  onClick={() => setIsOpen(false)}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.name}
-                </Link>
-              )
-            })}
+            <button
+              onClick={() => handleNavigation("/dashboard/sessions")}
+              disabled={isPending}
+              className={cn(
+                "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-left",
+                pathname === "/dashboard/sessions"
+                  ? "bg-slate-800 text-white"
+                  : "text-slate-300 hover:bg-slate-800 hover:text-white",
+                isPending && "opacity-50 cursor-not-allowed",
+              )}
+            >
+              <FileText className="h-4 w-4" />
+              All Sessions
+            </button>
           </nav>
-        </div>
+        </div>*/}
 
         <Separator className="bg-slate-800" />
 
@@ -189,12 +271,16 @@ export function Sidebar({ userProfile }: SidebarProps) {
         <div className="flex-1 min-h-0 px-4 py-4 flex flex-col">
           <div className="flex items-center justify-between mb-3 flex-shrink-0">
             <h3 className="text-sm font-medium text-slate-300">Recent Sessions</h3>
-            {sessions.length > 0 && (
-              <Link href="/dashboard/sessions" onClick={() => setIsOpen(false)}>
-                <Button variant="ghost" size="sm" className="text-xs text-slate-400 hover:text-white h-6 px-2">
-                  View All
-                </Button>
-              </Link>
+            {sessions.length > 5 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-slate-400 hover:text-white h-6 px-2"
+                onClick={() => handleNavigation("/dashboard/sessions")}
+                disabled={isPending}
+              >
+                View All
+              </Button>
             )}
           </div>
 
@@ -220,16 +306,18 @@ export function Sidebar({ userProfile }: SidebarProps) {
                       const sessionName = session.session_name || `Session ${session.id.slice(0, 8)}`
 
                       return (
-                        <Link
+                        <div
                           key={session.id}
-                          href={`/dashboard/sessions/${session.id}`}
-                          onClick={() => setIsOpen(false)}
                           className={cn(
-                            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors group",
+                            "group relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
                             isActive ? "bg-slate-800 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white",
                           )}
                         >
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <button
+                            onClick={() => handleNavigation(`/dashboard/sessions/${session.id}`)}
+                            disabled={isPending}
+                            className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                          >
                             {getSessionStatusIcon(session.status)}
                             <div className="flex-1 min-w-0">
                               <p className="truncate font-medium">{truncateSessionName(sessionName)}</p>
@@ -243,17 +331,57 @@ export function Sidebar({ userProfile }: SidebarProps) {
                                 </Badge>
                               </div>
                             </div>
+                          </button>
+
+                          {/* Three dots menu - appears on hover */}
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-700"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                  }}
+                                >
+                                  <MoreHorizontal className="h-3 w-3" />
+                                  <span className="sr-only">Session options</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    handleEditSession({
+                                      id: session.id,
+                                      session_name: session.session_name,
+                                    })
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                        </Link>
+                        </div>
                       )
                     })}
 
                     {sessions.length > 20 && (
-                      <Link href="/dashboard/sessions" onClick={() => setIsOpen(false)}>
-                        <div className="flex items-center justify-center py-2 text-xs text-slate-400 hover:text-white">
-                          View {sessions.length - 20} more sessions...
-                        </div>
-                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-xs text-slate-400 hover:text-white py-2"
+                        onClick={() => handleNavigation("/dashboard/sessions")}
+                        disabled={isPending}
+                      >
+                        View {sessions.length - 20} more sessions...
+                      </Button>
                     )}
                   </div>
                 )}
@@ -264,10 +392,10 @@ export function Sidebar({ userProfile }: SidebarProps) {
 
         <Separator className="bg-slate-800" />
 
-        {/* User Profile */}
+        {/* User Profile with Dropdown */}
         {(userProfile || identity) && (
           <div className="p-4">
-            <div className="mb-3 rounded-lg bg-slate-800 p-3">
+            {/*<div className="mb-3 rounded-lg bg-slate-800 p-3">
               <div className="flex items-center gap-2 mb-2">
                 <User className="h-4 w-4" />
                 <span className="text-sm font-medium truncate">
@@ -278,19 +406,63 @@ export function Sidebar({ userProfile }: SidebarProps) {
                 Plan: {userProfile?.plan_type?.charAt(0).toUpperCase() + userProfile?.plan_type?.slice(1) || "Free"}
               </div>
               <div className="text-xs text-slate-400">Tokens: {userProfile?.tokens_remaining || 0}</div>
-            </div>
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-slate-300 hover:bg-slate-800 hover:text-white"
-              onClick={handleSignOut}
-              disabled={isSigningOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              {isSigningOut ? "Signing out..." : "Sign Out"}
-            </Button>
+            </div>*/}
+
+            {/* Profile Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between text-slate-300 hover:bg-slate-800 hover:text-white p-2 h-auto"
+                  disabled={isPending}
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src="/placeholder.svg" alt="Profile" />
+                      <AvatarFallback className="bg-slate-700 text-slate-200 text-xs">
+                        {getUserInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-medium truncate max-w-[140px]">
+                        {userProfile?.full_name || identity?.name || "User"}
+                      </span>
+                      <span className="text-xs text-slate-400 truncate max-w-[140px]">
+                        {userProfile?.email || identity?.email}
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56" side="top">
+                <DropdownMenuItem onClick={() => handleNavigation("/dashboard/settings")} className="cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleNavigation("/dashboard/plans")} className="cursor-pointer">
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Billing & Plans
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  {isSigningOut ? "Signing out..." : "Sign Out"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>
+
+      {/* Edit Session Dialog */}
+      {editingSession && (
+        <EditSessionDialog session={editingSession} open={!!editingSession} onOpenChange={handleEditDialogClose} />
+      )}
     </div>
   )
 
