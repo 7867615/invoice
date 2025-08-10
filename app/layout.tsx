@@ -1,5 +1,4 @@
-import { DevtoolsProvider } from "@/providers/devtools";
-import { GitHubBanner, Refine } from "@refinedev/core";
+import { Refine } from "@refinedev/core";
 import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
 import routerProvider from "@refinedev/nextjs-router";
 import { Metadata } from "next";
@@ -15,7 +14,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
   },
-    generator: 'v0.dev'
+  generator: "v0.dev",
 };
 
 export default function RootLayout({
@@ -27,24 +26,21 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Suspense>
-          <GitHubBanner />
           <RefineKbarProvider>
-            <DevtoolsProvider>
-              <Refine
-                routerProvider={routerProvider}
-                authProvider={authProviderClient}
-                dataProvider={dataProvider}
-                options={{
-                  syncWithLocation: true,
-                  warnWhenUnsavedChanges: true,
-                  useNewQueryKeys: true,
-                  projectId: "zeRcLV-V9m3VS-dLxUiK",
-                }}
-              >
-                {children}
-                <RefineKbar />
-              </Refine>
-            </DevtoolsProvider>
+            <Refine
+              routerProvider={routerProvider}
+              authProvider={authProviderClient}
+              dataProvider={dataProvider}
+              options={{
+                syncWithLocation: true,
+                warnWhenUnsavedChanges: true,
+                useNewQueryKeys: true,
+                projectId: "zeRcLV-V9m3VS-dLxUiK",
+              }}
+            >
+              {children}
+              <RefineKbar />
+            </Refine>
           </RefineKbarProvider>
         </Suspense>
       </body>
