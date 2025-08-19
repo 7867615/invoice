@@ -5,6 +5,7 @@ import { Metadata } from "next";
 import React, { Suspense } from "react";
 import { authProviderClient } from "@/providers/auth-provider/auth-provider.client";
 import { dataProvider } from "@/providers/data-provider";
+import { liveProvider } from "@refinedev/supabase";
 
 import "./global.css";
 

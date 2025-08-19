@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useCallback, useTransition } from "react"
+import { DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+
+import { useState, useCallback } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useLogout, useGetIdentity, useList, useCreate } from "@refinedev/core"
 import { cn } from "@/lib/utils"
@@ -14,7 +16,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { EditSessionDialog } from "./edit-session-dialog"
@@ -25,7 +26,6 @@ import {
   FolderOpen,
   Menu,
   LogOut,
-  User,
   Clock,
   CheckCircle,
   XCircle,
@@ -33,7 +33,6 @@ import {
   MoreHorizontal,
   Edit,
   ChevronDown,
-  FileText,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
@@ -54,7 +53,6 @@ export function Sidebar({ userProfile }: SidebarProps) {
     id: string
     session_name: string | null
   } | null>(null)
-  const [isPending, startTransition] = useTransition()
   const [isCreatingSession, setIsCreatingSession] = useState(false)
   const { mutate: logout, isLoading: isSigningOut } = useLogout()
   const { data: identity } = useGetIdentity()
@@ -91,10 +89,8 @@ export function Sidebar({ userProfile }: SidebarProps) {
 
   const handleNavigation = useCallback(
     (href: string) => {
-      startTransition(() => {
-        router.push(href)
-        setIsOpen(false)
-      })
+      router.push(href)
+      setIsOpen(false)
     },
     [router],
   )
@@ -120,11 +116,9 @@ export function Sidebar({ userProfile }: SidebarProps) {
             title: "Session Created",
             description: "New inspection session has been created successfully.",
           })
-          // Navigate to the new session
-          startTransition(() => {
-            router.push(`/dashboard/sessions/${data.data.id}`)
-            setIsOpen(false)
-          })
+          // Navigate to the new session directly
+          router.push(`/dashboard/sessions/${data.data.id}`)
+          setIsOpen(false)
           // Refetch sessions to update the sidebar
           refetchSessions()
         },
@@ -238,7 +232,7 @@ export function Sidebar({ userProfile }: SidebarProps) {
           <Button
             className="w-full bg-blue-600 hover:bg-blue-700 text-white"
             onClick={handleCreateNewSession}
-            disabled={isPending || isCreatingSession || !identity?.id}
+            disabled={isCreatingSession || !identity?.id}
           >
             <Plus className="w-4 h-4 mr-2" />
             {isCreatingSession ? "Creating..." : "New Session"}
@@ -277,7 +271,6 @@ export function Sidebar({ userProfile }: SidebarProps) {
                 size="sm"
                 className="text-xs text-slate-400 hover:text-white h-6 px-2"
                 onClick={() => handleNavigation("/dashboard/sessions")}
-                disabled={isPending}
               >
                 View All
               </Button>
@@ -315,7 +308,6 @@ export function Sidebar({ userProfile }: SidebarProps) {
                         >
                           <button
                             onClick={() => handleNavigation(`/dashboard/sessions/${session.id}`)}
-                            disabled={isPending}
                             className="flex items-center gap-2 flex-1 min-w-0 text-left"
                           >
                             {getSessionStatusIcon(session.status)}
@@ -378,7 +370,6 @@ export function Sidebar({ userProfile }: SidebarProps) {
                         size="sm"
                         className="w-full text-xs text-slate-400 hover:text-white py-2"
                         onClick={() => handleNavigation("/dashboard/sessions")}
-                        disabled={isPending}
                       >
                         View {sessions.length - 20} more sessions...
                       </Button>
@@ -414,7 +405,6 @@ export function Sidebar({ userProfile }: SidebarProps) {
                 <Button
                   variant="ghost"
                   className="w-full justify-between text-slate-300 hover:bg-slate-800 hover:text-white p-2 h-auto"
-                  disabled={isPending}
                 >
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
